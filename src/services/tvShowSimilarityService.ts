@@ -1,6 +1,6 @@
 import { tvShowSimilaritiesModel, ISimilaritySchema  } from './../models/schemas/similaritySchema';
-import { SimilarityRateDto } from 'dtos/similarityRateDto';
-import { ISimilarity } from 'models/types/similarityType';
+import { SimilarityRateDto } from '../dtos/similarityRateDto';
+import { ISimilarity } from '../models/types/similarityType';
 import { ItemTypeEnum } from '../models/types/itemTypeEnum';
 
 const itemType : ItemTypeEnum = ItemTypeEnum.tvShow;

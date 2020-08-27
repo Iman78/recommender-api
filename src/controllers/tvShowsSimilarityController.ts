@@ -1,8 +1,8 @@
 import { cancelSimilarityVote } from './../services/tvShowSimilarityService';
 import { addOrUpdateTvShowSimilarities } from '../services/tvShowSimilarityService';
 import { Request, Response } from "express";
-import { SimilarityRateDto } from "dtos/similarityRateDto";
-import { ISimilarity } from 'models/types/similarityType';
+import { SimilarityRateDto } from "../dtos/similarityRateDto";
+import { ISimilarity } from '../models/types/similarityType';
 
 export const addTvShowSimilarityController= async (request : Request<{}, SimilarityRateDto>, response : Response)=>{
     const result : ISimilarity = await addOrUpdateTvShowSimilarities(request.body);

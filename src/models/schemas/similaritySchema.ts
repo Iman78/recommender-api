@@ -1,5 +1,5 @@
 import { Document, Model, model, Types, Schema, Query } from "mongoose"
-import { ISimilarityFactor, ISimilarity } from "models/types/similarityType";
+import { ISimilarityFactor, ISimilarity } from "../types/similarityType";
 
 const SimilarityFactorSchema = new Schema ({
     factorName : String,
