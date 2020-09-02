@@ -1,15 +1,13 @@
 
 export interface ISimilarityFactor{
     factorName : string;
-    similarityRatesSum : number;
-    votesCount : number;
+    similarityRate : number;
 }
 
 export interface ISimilarity{
     firstItemId : number;
     secondItemId : number;
-    votesCount : number;
-    similarityRatesSum : number;
-    lastUpdated : Date;
+    similarityRate : number;
+    date : Date;
     similarityFactors : ISimilarityFactor[];
 }

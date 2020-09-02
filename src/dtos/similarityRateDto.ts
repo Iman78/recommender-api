@@ -1,4 +1,5 @@
 export interface SimilarityRateDto{
+    id : string;
     firstItemId : 63333,
     secondItemId : 56570,
     similarityRate : 0.5,
@@ -8,4 +9,4 @@ export interface SimilarityRateDto{
         similarityRate : number
       }
     ]
-  }
+}

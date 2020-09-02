@@ -1,134 +1,73 @@
+import { BusinessException } from './../configuration/Exceptions/BusinessException';
+import { Types } from 'mongoose';
 import { tvShowSimilaritiesModel, ISimilaritySchema  } from './../models/schemas/similaritySchema';
-import { SimilarityRateDto } from '../dtos/similarityRateDto';
-import { ISimilarity } from '../models/types/similarityType';
+import { SimilarityRateDto as SimilarityRate } from '../dtos/similarityRateDto';
+import { ISimilarity, ISimilarityFactor } from '../models/types/similarityType';
 import { ItemTypeEnum } from '../models/types/itemTypeEnum';
 
 const itemType : ItemTypeEnum = ItemTypeEnum.tvShow;
 
-export const findByTvShowIds= async (firstItemId : number, secondItemId : number) :Promise<ISimilaritySchema> =>{
-    try{
-        const result = await tvShowSimilaritiesModel.findOne({firstItemId, secondItemId });
-        console.log(result);
-        return result;
-    }
-    catch(err){
-        console.error(err);
-    };
+export const getPairSimilarityFactors= async (firstItemId : number, secondItemId : number) =>{
+    const similarities = await tvShowSimilaritiesModel.find({ $or : [
+        {firstItemId : firstItemId, secondItemId : secondItemId}, 
+        {firstItemId : secondItemId, secondItemId : firstItemId}
+    ]});
+    if(similarities.length==0) throw new BusinessException(`No similarity between ${itemType}s with ids ${firstItemId} and ${firstItemId} could be found.`);
+    const result = await tvShowSimilaritiesModel.aggregate<ISimilarityFactor>([
+        { $match : { $or : [
+            {firstItemId : firstItemId, secondItemId : secondItemId}, 
+            {firstItemId : secondItemId, secondItemId : firstItemId}, 
+        ]}},
+        { $unwind : { "path": "$similarityFactors", "preserveNullAndEmptyArrays": true } },
+        { $group : {  
+            _id : "$similarityFactors.factorName",
+            factorSimilarityRate : { $avg: "$similarityFactors.similarityRate" }
+        }},
+        { $project : { _id :0, factorName: "$_id", factorSimilarityRate : "$factorSimilarityRate" }}
+    ]);
+    return result;
 }
 
-export const createTvShowSimilarity= async (tvShowSimilarityDto : SimilarityRateDto) : Promise<ISimilaritySchema> =>{
-    try{
-        const model = {
-            firstItemId : tvShowSimilarityDto.firstItemId,
-            secondItemId : tvShowSimilarityDto.secondItemId,
-            votesCount : 1,
-            similarityRatesSum : tvShowSimilarityDto.similarityRate,
-            lastUpdated : Date.now(),
-            similarityFactors : tvShowSimilarityDto.similarityFactors.map(f=>({
-                factorName : f.factorName,
-                similarityRatesSum : f.similarityRate,
-                votesCount : 1,
-            }))
-        };
-        const result = await tvShowSimilaritiesModel.create(model);
-        console.log(result);
-        return result;
-    }
-    catch(err){
-        console.error(err);
-    };
+export const getItemSimilarities= async (itemId : number) =>{
+    const result = await tvShowSimilaritiesModel.aggregate([
+        { $match : { $or : [
+            {firstItemId : itemId}, 
+            {secondItemId : itemId}, 
+        ]}},
+        { $group : {  
+            _id : {
+                $cond : [{
+                    $eq : [ "$firstItemId", itemId]
+                }, "$secondItemId", "$firstItemId"]
+            },
+            similarityRate : { $avg: "$similarityRate" }
+        }},
+        { $project : { _id :0, itemId: "$_id", similarityRate : "$similarityRate" }}
+    ]);
+    return result;
 }
 
-export const updateTvShowSimilarity= async (tvShowSimilarityDto : SimilarityRateDto, document : ISimilaritySchema) : Promise<ISimilaritySchema> =>{
-    try{
-        
-        document.votesCount=<number>document.votesCount+1;
-        document.similarityRatesSum=<number>document.similarityRatesSum+tvShowSimilarityDto.similarityRate;
-        tvShowSimilarityDto.similarityFactors.forEach((newFactor)=>{
-            var existent = document.similarityFactors.find( factor=>factor.factorName===newFactor.factorName );
-            if(existent){
-                existent.votesCount=<number>existent.votesCount+1;
-                existent.similarityRatesSum=<number>existent.similarityRatesSum+newFactor.similarityRate;
-            }
-            else document.similarityFactors.push({
-                factorName: newFactor.factorName, 
-                similarityRatesSum: newFactor.similarityRate, 
-                votesCount : 1,
-            })
-        });
-        document.lastUpdated = new Date();
-        const result = await document.save();
-        console.log(result);
-        return result;
-    }
-    catch(err){
-        console.error(err);
+export const createTvShowSimilarity= async (tvShowSimilarityDto : SimilarityRate) : Promise<ISimilarity> =>{
+    const model : ISimilarity = {
+        firstItemId : tvShowSimilarityDto.firstItemId,
+        secondItemId : tvShowSimilarityDto.secondItemId,
+        similarityRate : tvShowSimilarityDto.similarityRate,
+        date : new Date(),
+        similarityFactors : tvShowSimilarityDto.similarityFactors.map(f=>({
+            factorName : f.factorName,
+            similarityRate : f.similarityRate,
+        }))
     };
+    const result = await tvShowSimilaritiesModel.create(model);
+    console.log(result);
+    return result.toObject();
 }
 
-export const addOrUpdateTvShowSimilarities= async (tvShowSimilarityDto : SimilarityRateDto) : Promise<ISimilarity> =>{
-    try{
-        const existent = await findByTvShowIds(tvShowSimilarityDto.firstItemId, tvShowSimilarityDto.secondItemId);
-        if(existent){
-            return await (await updateTvShowSimilarity(tvShowSimilarityDto, existent)).toObject();
-        }else {
-            return (await createTvShowSimilarity(tvShowSimilarityDto)).toObject();
-        }
-    }
-    catch(err){
-        console.error(err);
-    };
-}
-
-export const deleteSimilarity= async (tvShowSimilarityDto : SimilarityRateDto) :Promise<ISimilaritySchema> =>{
-    try{
-        const result = await tvShowSimilaritiesModel.findOneAndDelete({
-            firstItemId : tvShowSimilarityDto.firstItemId, 
-            secondItemId : tvShowSimilarityDto.secondItemId 
-        });
-        console.log('deleted', result);
-        return result;
-    }
-    catch(err){
-        console.error(err);
-    };
-}
-
-export const cancelSimilarityVote= async (tvShowSimilarityDto : SimilarityRateDto) : Promise<ISimilarity> =>{
-    const document = await findByTvShowIds(tvShowSimilarityDto.firstItemId, tvShowSimilarityDto.secondItemId);
-    if(document && document.votesCount>1){
-        if(document.similarityRatesSum<tvShowSimilarityDto.similarityRate){
-            throw Error(`The vote ${tvShowSimilarityDto.similarityRate} for ${itemType}s of ids ${tvShowSimilarityDto.firstItemId} and ${tvShowSimilarityDto.secondItemId} is not correct.`);
-        }
-        document.votesCount=<number>document.votesCount-1;
-        document.similarityRatesSum=<number>document.similarityRatesSum-tvShowSimilarityDto.similarityRate;
-        tvShowSimilarityDto.similarityFactors.forEach((newFactor)=>{
-            var existent = document.similarityFactors.find( factor=>factor.factorName===newFactor.factorName );
-            if(existent){
-                existent.votesCount=<number>existent.votesCount-1;
-                existent.similarityRatesSum=<number>existent.similarityRatesSum-newFactor.similarityRate;
-                if(existent.similarityRatesSum<newFactor.similarityRate){
-                    throw Error(`The vote ${newFactor.similarityRate} for factor '${newFactor.factorName}' between ${itemType}s of ids ${document.firstItemId} and ${document.secondItemId} is not correct.`);
-                }
-                if(existent.votesCount==0) 
-                    document.similarityFactors.splice(document.similarityFactors.indexOf(existent), 1);
-            }
-        });
-        document.lastUpdated = new Date();
-        try{
-        const result = await document.save();
-        console.log(result);
-        return result;
-        }
-        catch(err){
-            console.error(err);
-        };
-    }else if(document){
-        const deleted = await (await deleteSimilarity(tvShowSimilarityDto)).toObject();
-        if(document.votesCount<1) throw Error(`No more votes for similarity between ${itemType}s with ids ${tvShowSimilarityDto.firstItemId} and ${tvShowSimilarityDto.secondItemId}. It was deleted from the database.`)
-        else return deleted;
-    }
-    else{
-        throw Error(`No similarity vote between ${itemType}s with ids ${tvShowSimilarityDto.firstItemId} and ${tvShowSimilarityDto.secondItemId}`);
-    }
+export const deleteSimilarityById= async (id : string) :Promise<ISimilarity> =>{
+    const result = await tvShowSimilaritiesModel.findOneAndDelete({
+        _id :  Types.ObjectId(id)
+    });
+    console.log('deleted', result);
+    if(!result) throw new BusinessException(`No record of similaritywith id ${id} between ${itemType}s could be found.`)
+    return result.toObject();
 }

@@ -1,14 +1,8 @@
 import { Document, Model, model, Types, Schema, Query } from "mongoose"
-import { ISimilarityFactor, ISimilarity } from "../types/similarityType";
+import { ISimilarity } from "../types/similarityType";
+import { SimilarityFactorSchema } from "./similarityFactorSchema";
 
-const SimilarityFactorSchema = new Schema ({
-    factorName : String,
-    similarityRatesSum : Number,
-    votesCount : Number,
-});
 
-export interface ISimilarityFactorDocument extends Document, ISimilarityFactor{
-}
 
 const SimilaritySchema = new Schema({
     firstItemId : {
@@ -20,18 +14,13 @@ const SimilaritySchema = new Schema({
         required: true
     },
     lastUpdated : Date,
-    votesCount : {
-        type: Number,
-        required: true
-    },
-    similarityRatesSum : {
+    similarityRate : {
         type: Number,
         required: true
     },
     similarityFactors : [SimilarityFactorSchema] 
 });
 
-SimilaritySchema.index({firstItemId: 1, secondItemId: 1}, {unique: true});
 
 export interface ISimilaritySchema extends Document, ISimilarity{
 }
